@@ -1,104 +1,88 @@
----
-pipeline:
-  build:
+kind: pipeline
+name: default
+
+clone:
+  disable: true
+
+steps:
+  - name: fetch
+    image: docker:git
+    commands:
+      - git clone --depth 1 https://github.com/xunchangguo/rancher.git github.com/rancher/rancher
+      - git checkout $DRONE_COMMIT
+
+  - name: build
     privileged: true
     image: rancher/dapper:1.11.2
     volumes:
-    - /var/run/docker.sock:/var/run/docker.sock
+      - name: docker
+        path: /var/run/docker.sock
     commands:
-    - dapper ci
-
-  stage-binaries:
-    image: rancher/dapper:1.11.2
-    commands:
-    - cp -r ./bin/* ./package/
+      - dapper ci
     when:
       branch: [master, release/*, alpha]
       event: [push,tag]
 
-  docker-publish-master:
-    image: plugins/docker
-    dockerfile: package/Dockerfile
-    repo: rancher/rancher
-    context: package/
-    tag: master
-    secrets: [docker_username, docker_password]
-    environment:
-    -  PLUGIN_CUSTOM_DNS=1.1.1.1
-    build_args:
-    - VERSION=master
-    when:
-      branch: master
-      event: push
-
-  docker-publish-master-agent:
-    image: plugins/docker
-    dockerfile: package/Dockerfile.agent
-    repo: rancher/rancher-agent
-    context: package/
-    tag: master
-    secrets: [docker_username, docker_password]
-    environment:
-    -  PLUGIN_CUSTOM_DNS=1.1.1.1
-    build_args:
-    - VERSION=master
-    when:
-      branch: master
-      event: push
-
-  docker-publish:
-    image: plugins/docker
-    dockerfile: package/Dockerfile
-    repo: rancher/rancher
-    context: package/
-    tag: ${DRONE_TAG}
-    secrets: [docker_username, docker_password]
-    environment:
-    -  PLUGIN_CUSTOM_DNS=1.1.1.1
-    build_args:
-    - VERSION=${DRONE_TAG}
+  - name: stage-binaries
+    image: rancher/dapper:1.11.2
+    commands:
+      - cp -r ./bin/* ./package/
     when:
       branch: [master, release/*, alpha]
-      event: tag
+      event: [push,tag]
 
-  docker-publish-agent:
-    image: plugins/docker
-    dockerfile: package/Dockerfile.agent
-    repo: rancher/rancher-agent
-    context: package/
-    tag: ${DRONE_TAG}
-    secrets: [docker_username, docker_password]
-    environment:
-    -  PLUGIN_CUSTOM_DNS=1.1.1.1
-    build_args:
-    - VERSION=${DRONE_TAG}
-    when:
-      branch: [master, release/*, alpha]
-      event: tag
-
-  github_binary_prerelease:
+  - name: github_binary_release
     image: plugins/github-release
-    prerelease: true
-    files:
-     - bin/rancher-*
-    checksum:
-     - sha256
-    secrets: [github_token]
-    when:
-      branch: [master, release/*, alpha]
-      event: tag
-      ref:
-        include: [ refs/tags/*rc*, refs/tags/*alpha* ]
-
-  github_binary_release:
-    image: plugins/github-release
-    files:
-     - bin/rancher-*
-    checksum:
-     - sha256
-    secrets: [github_token]
+    settings:
+      files:
+        - bin/rancher-*
+      checksum:
+        - sha256
+      api_key:
+        from_secret: git_release
     when:
       branch: [master, release/*]
       event: tag
       ref:
         exclude: [ refs/tags/*rc*, refs/tags/*alpha* ]
+
+  - name: docker-publish
+    image: plugins/docker
+    settings:
+      dockerfile: package/Dockerfile
+      repo: xunchangguo/rancher
+      context: package/
+      tag: ${DRONE_TAG}
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+      tags:
+        - ${DRONE_TAG}
+    when:
+      branch: [master, release/*, alpha]
+      event: tag
+
+  - name: docker-publish-agent
+    image: plugins/docker
+    settings:
+      dockerfile: package/Dockerfile.agent
+      repo: xunchangguo/rancher-agent
+      context: package/
+      tag: ${DRONE_TAG}
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+      tags:
+        - ${DRONE_TAG}
+    when:
+      branch: [master, release/*, alpha]
+      event: tag
+
+volumes:
+  - name: docker
+    host:
+      path: /var/run/docker.sock
+  - name: cache
+    temp: {}
