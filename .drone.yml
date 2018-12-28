@@ -14,9 +14,6 @@ steps:
   - name: build
     privileged: true
     image: rancher/dapper:1.11.2
-    volumes:
-      - name: docker
-        path: /var/run/docker.sock
     commands:
       - dapper ci
     when:
@@ -80,9 +77,3 @@ steps:
       branch: [master, release/*, alpha]
       event: tag
 
-volumes:
-  - name: docker
-    host:
-      path: /var/run/docker.sock
-  - name: cache
-    temp: {}
