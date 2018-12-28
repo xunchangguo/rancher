@@ -12,7 +12,6 @@ steps:
       - git checkout $DRONE_COMMIT
 
   - name: build
-    privileged: true
     image: rancher/dapper:1.11.2
     commands:
       - dapper ci
