@@ -1,9 +1,6 @@
 kind: pipeline
 name: default
 
-clone:
-  disable: true
-
 steps:
   - name: fetch
     image: docker:git
