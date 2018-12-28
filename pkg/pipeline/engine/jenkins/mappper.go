@@ -75,7 +75,7 @@ func convertPipelineExecution(execution *v3.PipelineExecution) string {
 
 		}
 	}
-	ns := utils.GetPipelineCommonName(execution)
+	ns := utils.GetPipelineCommonName(execution.Spec.ProjectName)
 	jenkinsURL := fmt.Sprintf("http://%s:%d", utils.JenkinsName, utils.JenkinsPort)
 	timeout := utils.DefaultTimeout
 	if execution.Spec.PipelineConfig.Timeout > 0 {
@@ -123,6 +123,18 @@ func parsePreservedEnvVar(execution *v3.PipelineExecution) {
 			} else if step.ApplyYamlConfig != nil {
 				step.ApplyYamlConfig.Path = substituteEnvVar(m, step.ApplyYamlConfig.Path)
 				step.ApplyYamlConfig.Content = substituteEnvVar(m, step.ApplyYamlConfig.Content)
+			} else if step.PublishCatalogConfig != nil {
+				step.PublishCatalogConfig.Path = substituteEnvVar(m, step.PublishCatalogConfig.Path)
+				step.PublishCatalogConfig.Catalog = substituteEnvVar(m, step.PublishCatalogConfig.Catalog)
+				step.PublishCatalogConfig.Version = substituteEnvVar(m, step.PublishCatalogConfig.Version)
+			} else if step.ApplyAppConfig != nil {
+				step.ApplyAppConfig.Catalog = substituteEnvVar(m, step.ApplyAppConfig.Catalog)
+				step.ApplyAppConfig.Version = substituteEnvVar(m, step.ApplyAppConfig.Version)
+				step.ApplyAppConfig.Name = substituteEnvVar(m, step.ApplyAppConfig.Name)
+				step.ApplyAppConfig.TargetNamespace = substituteEnvVar(m, step.ApplyAppConfig.TargetNamespace)
+				for k, v := range step.ApplyAppConfig.Answers {
+					step.ApplyAppConfig.Answers[k] = substituteEnvVar(m, v)
+				}
 			}
 			for k, v := range step.Env {
 				step.Env[k] = substituteEnvVar(m, v)
@@ -155,7 +167,7 @@ const stepBlock = `'%s': {
 
 const pipelineBlock = `import org.jenkinsci.plugins.pipeline.modeldefinition.Utils
 def label = "buildpod.${env.JOB_NAME}.${env.BUILD_NUMBER}".replace('-', '_').replace('/', '_')
-podTemplate(label: label, namespace: '%s', instanceCap: 1, serviceAccount: 'jenkins',volumes: [emptyDirVolume(mountPath: '/var/lib/docker', memory: false), secretVolume(mountPath: '/etc/docker/certs.d/docker-registry.%s', secretName: 'registry-crt')], containers: [
+podTemplate(label: label, namespace: '%s', instanceCap: 1, serviceAccount: 'jenkins',volumes: [secretVolume(mountPath: '/etc/docker/certs.d/docker-registry.%s', secretName: 'registry-crt')], containers: [
 %s
 containerTemplate(name: 'jnlp', image: '%s', envVars: [
 envVar(key: 'JENKINS_URL', value: '%s')], args: '${computer.jnlpmac} ${computer.name}', ttyEnabled: false)], yaml: """
@@ -191,7 +203,7 @@ timeout(%d) {
 
 const containerBlock = `containerTemplate(name: '%s', image: '%s', ttyEnabled: true, command: 'cat' %s),`
 
-const envVarSkel = "envVar(key: '%s', value: '%s'),"
+const envVarSkel = "envVar(key: '%s', value: '''%s'''),"
 
 const secretEnvSkel = "secretEnvVar(key: '%s', secretName: '%s', secretKey: '%s'),"
 
