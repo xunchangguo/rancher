@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -29,13 +28,6 @@ var (
 		Kind:         ClusterRoleBindingGroupVersionKind.Kind,
 	}
 )
-
-func NewClusterRoleBinding(namespace, name string, obj v1.ClusterRoleBinding) *v1.ClusterRoleBinding {
-	obj.APIVersion, obj.Kind = ClusterRoleBindingGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type ClusterRoleBindingList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -232,8 +224,8 @@ func (s *clusterRoleBindingClient) Watch(opts metav1.ListOptions) (watch.Interfa
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *clusterRoleBindingClient) Patch(o *v1.ClusterRoleBinding, patchType types.PatchType, data []byte, subresources ...string) (*v1.ClusterRoleBinding, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *clusterRoleBindingClient) Patch(o *v1.ClusterRoleBinding, data []byte, subresources ...string) (*v1.ClusterRoleBinding, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*v1.ClusterRoleBinding), err
 }
 
@@ -285,7 +277,6 @@ type ClusterRoleBindingClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() ClusterRoleBindingInterface
 }
 
@@ -304,10 +295,6 @@ func (n *clusterRoleBindingClient2) Interface() ClusterRoleBindingInterface {
 
 func (n *clusterRoleBindingClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *clusterRoleBindingClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *clusterRoleBindingClient2) Enqueue(namespace, name string) {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sort"
+	"reflect"
 	"time"
 
 	"github.com/rancher/norman/httperror"
@@ -28,11 +28,12 @@ import (
 // TODO Cleanup error logging. If error is being returned, use errors.wrap to return and dont log here
 
 const (
-	userPrincipalIndex = "authn.management.cattle.io/user-principal-index"
-	UserIDLabel        = "authn.management.cattle.io/token-userId"
-	tokenKeyIndex      = "authn.management.cattle.io/token-key-index"
-	secretNameEnding   = "-secret"
-	secretNamespace    = "cattle-system"
+	userPrincipalIndex       = "authn.management.cattle.io/user-principal-index"
+	UserIDLabel              = "authn.management.cattle.io/token-userId"
+	tokenKeyIndex            = "authn.management.cattle.io/token-key-index"
+	userAttributeByUserIndex = "authn.management.cattle.io/user-attrib-by-user"
+	secretNameEnding         = "-secret"
+	secretNamespace          = "cattle-system"
 )
 
 func NewManager(ctx context.Context, apiContext *config.ScaledContext) *Manager {
@@ -83,6 +84,15 @@ func tokenKeyIndexer(obj interface{}) ([]string, error) {
 	}
 
 	return []string{token.Token}, nil
+}
+
+func userAttribByUserIndexer(obj interface{}) ([]string, error) {
+	userAttrib, ok := obj.(*v3.UserAttribute)
+	if !ok {
+		return []string{}, nil
+	}
+
+	return []string{userAttrib.UserName}, nil
 }
 
 // createDerivedToken will create a jwt token for the authenticated user
@@ -483,24 +493,13 @@ func (m *Manager) CreateSecret(userID, provider, secret string) error {
 	return m.UpdateSecret(userID, provider, secret)
 }
 
-func (m *Manager) GetSecret(userID string, provider string, fallbackTokens []*v3.Token) (string, error) {
-	cachedSecret, err := m.secretLister.Get(secretNamespace, userID+secretNameEnding)
-	if err != nil && !apierrors.IsNotFound(err) {
+func (m *Manager) GetSecret(token *v3.Token) (string, error) {
+	cachedSecret, err := m.secretLister.Get(secretNamespace, token.UserID+secretNameEnding)
+	if err != nil {
 		return "", err
 	}
 
-	if (err == nil) && cachedSecret != nil && string(cachedSecret.Data[provider]) != "" {
-		return string(cachedSecret.Data[provider]), nil
-	}
-
-	for _, token := range fallbackTokens {
-		secret := token.ProviderInfo["access_token"]
-		if secret != "" {
-			return secret, nil
-		}
-	}
-
-	return "", err // The not found error from above
+	return string(cachedSecret.Data[token.AuthProvider]), nil
 }
 
 func (m *Manager) UpdateSecret(userID, provider, secret string) error {
@@ -517,102 +516,59 @@ func (m *Manager) UpdateSecret(userID, provider, secret string) error {
 	return err
 }
 
-func (m *Manager) EnsureAndGetUserAttribute(userID string) (*v3.UserAttribute, bool, error) {
+func (m *Manager) userAttributeCreateOrUpdate(userID, provider string, groupPrincipals []v3.Principal) error {
 	attribs, err := m.userAttributeLister.Get("", userID)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, false, err
+		return err
 	}
 
+	// Doesn't exist, create
 	if attribs == nil {
-		attribs, err = m.userAttributes.Get(userID, metav1.GetOptions{})
-		if err != nil && !apierrors.IsNotFound(err) {
-			return nil, false, err
+		user, err := m.userLister.Get("", userID)
+		if err != nil {
+			return err
 		}
-	}
-
-	if attribs != nil && attribs.Name != "" {
-		return attribs.DeepCopy(), false, nil
-	}
-
-	user, err := m.userLister.Get("", userID)
-	if err != nil {
-		return nil, false, err
-	}
-
-	attribs = &v3.UserAttribute{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: userID,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: user.APIVersion,
-					Kind:       user.Kind,
-					UID:        user.UID,
-					Name:       user.Name,
+		attribs = &v3.UserAttribute{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: userID,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion: user.APIVersion,
+						Kind:       user.Kind,
+						UID:        user.UID,
+						Name:       user.Name,
+					},
 				},
 			},
-		},
-		GroupPrincipals: map[string]v3.Principals{},
-		LastRefresh:     "",
-		NeedsRefresh:    false,
-	}
+			GroupPrincipals: map[string]v3.Principals{
+				provider: v3.Principals{Items: groupPrincipals},
+			},
+		}
 
-	return attribs, true, nil
-}
-
-func (m *Manager) UserAttributeCreateOrUpdate(userID, provider string, groupPrincipals []v3.Principal) error {
-	attribs, needCreate, err := m.EnsureAndGetUserAttribute(userID)
-	if err != nil {
-		return err
+		_, createErr := m.userAttributes.Create(attribs)
+		if apierrors.IsAlreadyExists(createErr) {
+			// get from API so that we can try to update instead
+			attribs, err = m.userAttributes.Get(userID, metav1.GetOptions{})
+			if err != nil {
+				return createErr
+			}
+		} else {
+			return createErr
+		}
 	}
 
 	// Exists, just update if necessary
 	attribs = attribs.DeepCopy()
-
-	if m.UserAttributeChanged(attribs, provider, groupPrincipals) {
-		attribs.GroupPrincipals[provider] = v3.Principals{Items: groupPrincipals}
-		if !needCreate {
-			_, err := m.userAttributes.Update(attribs)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
+	if attribs.GroupPrincipals == nil {
+		attribs.GroupPrincipals = map[string]v3.Principals{}
 	}
-
-	if needCreate {
-		_, err := m.userAttributes.Create(attribs)
-		if err != nil {
-			return err
-		}
+	if gps := attribs.GroupPrincipals[provider]; !reflect.DeepEqual(groupPrincipals, gps.Items) {
+		attribs.GroupPrincipals[provider] = v3.Principals{Items: groupPrincipals}
+		_, err := m.userAttributes.Update(attribs)
+		return err
 	}
 
 	return nil
-}
-
-func (m *Manager) UserAttributeChanged(attribs *v3.UserAttribute, provider string, groupPrincipals []v3.Principal) bool {
-	oldSet := []string{}
-	newSet := []string{}
-	for _, principal := range attribs.GroupPrincipals[provider].Items {
-		oldSet = append(oldSet, principal.ObjectMeta.Name)
-	}
-	for _, principal := range groupPrincipals {
-		newSet = append(newSet, principal.ObjectMeta.Name)
-	}
-	sort.Strings(oldSet)
-	sort.Strings(newSet)
-
-	if len(oldSet) != len(newSet) {
-		return true
-	}
-
-	for i := range oldSet {
-		if oldSet[i] != newSet[i] {
-			return true
-		}
-	}
-
-	return false
 }
 
 var uaBackoff = wait.Backoff{
@@ -625,7 +581,7 @@ var uaBackoff = wait.Backoff{
 func (m *Manager) NewLoginToken(userID string, userPrincipal v3.Principal, groupPrincipals []v3.Principal, providerToken string, ttl int64, description string) (v3.Token, error) {
 	provider := userPrincipal.Provider
 
-	if (provider == "github" || provider == "azuread") && providerToken != "" {
+	if (provider == "github" || provider == "azuread" || provider == "zoomlion") && providerToken != "" {
 		err := m.CreateSecret(userID, provider, providerToken)
 		if err != nil {
 			return v3.Token{}, fmt.Errorf("unable to create secret: %s", err)
@@ -633,7 +589,7 @@ func (m *Manager) NewLoginToken(userID string, userPrincipal v3.Principal, group
 	}
 
 	err := wait.ExponentialBackoff(uaBackoff, func() (bool, error) {
-		err := m.UserAttributeCreateOrUpdate(userID, provider, groupPrincipals)
+		err := m.userAttributeCreateOrUpdate(userID, provider, groupPrincipals)
 		if err != nil {
 			logrus.Warnf("Problem creating or updating userAttribute for %v: %v", userID, err)
 		}
@@ -656,7 +612,7 @@ func (m *Manager) NewLoginToken(userID string, userPrincipal v3.Principal, group
 	return m.createToken(token)
 }
 
-func (m *Manager) UpdateToken(token *v3.Token) (*v3.Token, error) {
+func (m *Manager) UpateLoginToken(token *v3.Token) (*v3.Token, error) {
 	return m.updateToken(token)
 }
 

@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -29,13 +28,6 @@ var (
 		Kind: ClusterRoleTemplateBindingGroupVersionKind.Kind,
 	}
 )
-
-func NewClusterRoleTemplateBinding(namespace, name string, obj ClusterRoleTemplateBinding) *ClusterRoleTemplateBinding {
-	obj.APIVersion, obj.Kind = ClusterRoleTemplateBindingGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type ClusterRoleTemplateBindingList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -232,8 +224,8 @@ func (s *clusterRoleTemplateBindingClient) Watch(opts metav1.ListOptions) (watch
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *clusterRoleTemplateBindingClient) Patch(o *ClusterRoleTemplateBinding, patchType types.PatchType, data []byte, subresources ...string) (*ClusterRoleTemplateBinding, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *clusterRoleTemplateBindingClient) Patch(o *ClusterRoleTemplateBinding, data []byte, subresources ...string) (*ClusterRoleTemplateBinding, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*ClusterRoleTemplateBinding), err
 }
 
@@ -285,7 +277,6 @@ type ClusterRoleTemplateBindingClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() ClusterRoleTemplateBindingInterface
 }
 
@@ -304,10 +295,6 @@ func (n *clusterRoleTemplateBindingClient2) Interface() ClusterRoleTemplateBindi
 
 func (n *clusterRoleTemplateBindingClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *clusterRoleTemplateBindingClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *clusterRoleTemplateBindingClient2) Enqueue(namespace, name string) {

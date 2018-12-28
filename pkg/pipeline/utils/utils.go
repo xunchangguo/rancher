@@ -161,8 +161,8 @@ func ValidPipelineConfig(config v3.PipelineConfig) error {
 	return nil
 }
 
-func GetPipelineCommonName(projectName string) string {
-	_, p := ref.Parse(projectName)
+func GetPipelineCommonName(obj *v3.PipelineExecution) string {
+	_, p := ref.Parse(obj.Spec.ProjectName)
 	return p + PipelineNamespaceSuffix
 }
 

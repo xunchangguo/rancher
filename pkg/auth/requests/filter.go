@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/rancher/rancher/pkg/auth/providerrefresh"
 	"github.com/rancher/rancher/pkg/auth/util"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
@@ -39,6 +38,5 @@ func (h authHeaderHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	for _, group := range groups {
 		req.Header.Add("Impersonate-Group", group)
 	}
-	go providerrefresh.TriggerUserRefresh(user, false)
 	h.next.ServeHTTP(rw, req)
 }

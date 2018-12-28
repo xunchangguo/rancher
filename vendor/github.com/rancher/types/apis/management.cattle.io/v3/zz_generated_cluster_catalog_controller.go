@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -29,13 +28,6 @@ var (
 		Kind: ClusterCatalogGroupVersionKind.Kind,
 	}
 )
-
-func NewClusterCatalog(namespace, name string, obj ClusterCatalog) *ClusterCatalog {
-	obj.APIVersion, obj.Kind = ClusterCatalogGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type ClusterCatalogList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -232,8 +224,8 @@ func (s *clusterCatalogClient) Watch(opts metav1.ListOptions) (watch.Interface, 
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *clusterCatalogClient) Patch(o *ClusterCatalog, patchType types.PatchType, data []byte, subresources ...string) (*ClusterCatalog, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *clusterCatalogClient) Patch(o *ClusterCatalog, data []byte, subresources ...string) (*ClusterCatalog, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*ClusterCatalog), err
 }
 
@@ -285,7 +277,6 @@ type ClusterCatalogClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() ClusterCatalogInterface
 }
 
@@ -304,10 +295,6 @@ func (n *clusterCatalogClient2) Interface() ClusterCatalogInterface {
 
 func (n *clusterCatalogClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *clusterCatalogClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *clusterCatalogClient2) Enqueue(namespace, name string) {

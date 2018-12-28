@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -30,13 +29,6 @@ var (
 		Kind: ReplicationControllerGroupVersionKind.Kind,
 	}
 )
-
-func NewReplicationController(namespace, name string, obj v1.ReplicationController) *v1.ReplicationController {
-	obj.APIVersion, obj.Kind = ReplicationControllerGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type ReplicationControllerList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -233,8 +225,8 @@ func (s *replicationControllerClient) Watch(opts metav1.ListOptions) (watch.Inte
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *replicationControllerClient) Patch(o *v1.ReplicationController, patchType types.PatchType, data []byte, subresources ...string) (*v1.ReplicationController, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *replicationControllerClient) Patch(o *v1.ReplicationController, data []byte, subresources ...string) (*v1.ReplicationController, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*v1.ReplicationController), err
 }
 
@@ -286,7 +278,6 @@ type ReplicationControllerClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() ReplicationControllerInterface
 }
 
@@ -305,10 +296,6 @@ func (n *replicationControllerClient2) Interface() ReplicationControllerInterfac
 
 func (n *replicationControllerClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *replicationControllerClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *replicationControllerClient2) Enqueue(namespace, name string) {

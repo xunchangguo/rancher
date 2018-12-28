@@ -117,8 +117,6 @@ type ClusterOperations interface {
 	ActionGenerateKubeconfig(resource *Cluster) (*GenerateKubeConfigOutput, error)
 
 	ActionImportYaml(resource *Cluster, input *ImportClusterYamlInput) (*ImportYamlOutput, error)
-
-	ActionRotateCertificates(resource *Cluster, input *RotateCertificateInput) error
 }
 
 func newClusterClient(apiClient *Client) *ClusterClient {
@@ -198,9 +196,4 @@ func (c *ClusterClient) ActionImportYaml(resource *Cluster, input *ImportCluster
 	resp := &ImportYamlOutput{}
 	err := c.apiClient.Ops.DoAction(ClusterType, "importYaml", &resource.Resource, input, resp)
 	return resp, err
-}
-
-func (c *ClusterClient) ActionRotateCertificates(resource *Cluster, input *RotateCertificateInput) error {
-	err := c.apiClient.Ops.DoAction(ClusterType, "rotateCertificates", &resource.Resource, input, nil)
-	return err
 }

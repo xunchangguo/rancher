@@ -64,20 +64,17 @@ func (w ActionWrapper) ActionHandler(actionName string, action *types.Action, ap
 	}
 	switch actionName {
 	case "move":
-		clusterID := w.ClusterManager.ClusterName(apiContext)
-		_, projectID := ref.Parse(convert.ToString(actionInput["projectId"]))
+		clusterID, projectID := ref.Parse(convert.ToString(actionInput["projectId"]))
 		userContext, err := w.ClusterManager.UserContext(clusterID)
 		if err != nil {
 			return err
 		}
-		if projectID != "" {
-			project, err := userContext.Management.Management.Projects(clusterID).Get(projectID, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			if project.Spec.ResourceQuota != nil {
-				return errors.Errorf("can't move namespace. Project %s has resource quota set", project.Spec.DisplayName)
-			}
+		project, err := userContext.Management.Management.Projects(clusterID).Get(projectID, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if project.Spec.ResourceQuota != nil {
+			return errors.Errorf("can't move namespace. Project %s has resource quota set", project.Spec.DisplayName)
 		}
 		nsClient := userContext.Core.Namespaces("")
 		ns, err := nsClient.Get(apiContext.ID, metav1.GetOptions{})
@@ -87,11 +84,7 @@ func (w ActionWrapper) ActionHandler(actionName string, action *types.Action, ap
 		if ns.Annotations[helm.AppIDsLabel] != "" {
 			return errors.New("namespace is currently being used")
 		}
-		if projectID == "" {
-			delete(ns.Annotations, projectIDFieldLabel)
-		} else {
-			ns.Annotations[projectIDFieldLabel] = convert.ToString(actionInput["projectId"])
-		}
+		ns.Annotations[projectIDFieldLabel] = convert.ToString(actionInput["projectId"])
 		if _, err := nsClient.Update(ns); err != nil {
 			return err
 		}

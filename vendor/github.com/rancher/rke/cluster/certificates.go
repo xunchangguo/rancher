@@ -15,6 +15,11 @@ import (
 	"k8s.io/client-go/util/cert"
 )
 
+type RotateCertificatesFlags struct {
+	RotateCACerts    bool
+	RotateComponents []string
+}
+
 func SetUpAuthentication(ctx context.Context, kubeCluster, currentCluster *Cluster, fullState *FullState) error {
 	if kubeCluster.Authentication.Strategy == X509AuthenticationProvider {
 		kubeCluster.Certificates = fullState.DesiredState.CertificatesBundle
@@ -149,7 +154,7 @@ func regenerateAPIAggregationCerts(c *Cluster, certificates map[string]pki.Certi
 	return certificates, nil
 }
 
-func RotateRKECertificates(ctx context.Context, c *Cluster, flags ExternalFlags, clusterState *FullState) error {
+func RotateRKECertificates(ctx context.Context, c *Cluster, flags ExternalFlags, rotateflags RotateCertificatesFlags, clusterState *FullState) error {
 	var (
 		serviceAccountTokenKey string
 	)
@@ -161,15 +166,14 @@ func RotateRKECertificates(ctx context.Context, c *Cluster, flags ExternalFlags,
 		services.KubeletContainerName:        pki.GenerateKubeNodeCertificate,
 		services.EtcdContainerName:           pki.GenerateEtcdCertificates,
 	}
-	rotateFlags := c.RancherKubernetesEngineConfig.RotateCertificates
-	if rotateFlags.CACertificates {
+	if rotateflags.RotateCACerts {
 		// rotate CA cert and RequestHeader CA cert
 		if err := pki.GenerateRKECACerts(ctx, c.Certificates, flags.ClusterFilePath, flags.ConfigDir); err != nil {
 			return err
 		}
-		rotateFlags.Services = nil
+		rotateflags.RotateComponents = nil
 	}
-	for _, k8sComponent := range rotateFlags.Services {
+	for _, k8sComponent := range rotateflags.RotateComponents {
 		genFunc := componentsCertsFuncMap[k8sComponent]
 		if genFunc != nil {
 			if err := genFunc(ctx, c.Certificates, c.RancherKubernetesEngineConfig, flags.ClusterFilePath, flags.ConfigDir, true); err != nil {
@@ -177,8 +181,7 @@ func RotateRKECertificates(ctx context.Context, c *Cluster, flags ExternalFlags,
 			}
 		}
 	}
-	// to handle kontainer engine sending empty string for services
-	if len(rotateFlags.Services) == 0 || (len(rotateFlags.Services) == 1 && rotateFlags.Services[0] == "") {
+	if len(rotateflags.RotateComponents) == 0 {
 		// do not rotate service account token
 		if c.Certificates[pki.ServiceAccountTokenKeyName].Key != nil {
 			serviceAccountTokenKey = string(cert.EncodePrivateKeyPEM(c.Certificates[pki.ServiceAccountTokenKeyName].Key))
@@ -202,4 +205,11 @@ func RotateRKECertificates(ctx context.Context, c *Cluster, flags ExternalFlags,
 	clusterState.DesiredState.CertificatesBundle = c.Certificates
 	clusterState.DesiredState.RancherKubernetesEngineConfig = &c.RancherKubernetesEngineConfig
 	return nil
+}
+
+func GetRotateCertsFlags(rotateCACerts bool, components []string) RotateCertificatesFlags {
+	return RotateCertificatesFlags{
+		RotateCACerts:    rotateCACerts,
+		RotateComponents: components,
+	}
 }

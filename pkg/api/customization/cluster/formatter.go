@@ -24,9 +24,6 @@ func (f *Formatter) Formatter(request *types.APIContext, resource *types.RawReso
 	resource.AddAction(request, "generateKubeconfig")
 	resource.AddAction(request, "importYaml")
 	resource.AddAction(request, "exportYaml")
-	if _, ok := resource.Values["rancherKubernetesEngineConfig"]; ok {
-		resource.AddAction(request, "rotateCertificates")
-	}
 
 	if convert.ToBool(resource.Values["enableClusterMonitoring"]) {
 		resource.AddAction(request, "disableMonitoring")

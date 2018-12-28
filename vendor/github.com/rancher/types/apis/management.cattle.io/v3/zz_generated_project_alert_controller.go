@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -29,13 +28,6 @@ var (
 		Kind: ProjectAlertGroupVersionKind.Kind,
 	}
 )
-
-func NewProjectAlert(namespace, name string, obj ProjectAlert) *ProjectAlert {
-	obj.APIVersion, obj.Kind = ProjectAlertGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type ProjectAlertList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -232,8 +224,8 @@ func (s *projectAlertClient) Watch(opts metav1.ListOptions) (watch.Interface, er
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *projectAlertClient) Patch(o *ProjectAlert, patchType types.PatchType, data []byte, subresources ...string) (*ProjectAlert, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *projectAlertClient) Patch(o *ProjectAlert, data []byte, subresources ...string) (*ProjectAlert, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*ProjectAlert), err
 }
 
@@ -285,7 +277,6 @@ type ProjectAlertClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() ProjectAlertInterface
 }
 
@@ -304,10 +295,6 @@ func (n *projectAlertClient2) Interface() ProjectAlertInterface {
 
 func (n *projectAlertClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *projectAlertClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *projectAlertClient2) Enqueue(namespace, name string) {

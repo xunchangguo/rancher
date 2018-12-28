@@ -146,7 +146,7 @@ func (d *ConfigSyncer) sync() error {
 	}
 
 	config := manager.GetAlertManagerDefaultConfig()
-	config.Global.PagerdutyURL = "https://events.pagerduty.com/v2/enqueue"
+	config.Global.PagerdutyURL = "https://events.pagerduty.com/generic/2010-04-15/create_event.json"
 
 	if err = d.addClusterAlert2Config(config, cAlertsMap, cAlertsKey, notifiers); err != nil {
 		return err
@@ -218,7 +218,7 @@ func (d *ConfigSyncer) addProjectAlert2Operator(projectGroups map[string]map[str
 			for _, alertRule := range alertRules {
 				if alertRule.Spec.MetricRule != nil {
 					ruleID := common.GetRuleID(alertRule.Spec.GroupName, alertRule.Name)
-					promRule := manager.Metric2Rule(groupID, ruleID, alertRule.Spec.Severity, alertRule.Spec.DisplayName, d.clusterName, projectName, alertRule.Spec.MetricRule)
+					promRule := manager.Metric2Rule(groupID, ruleID, alertRule.Spec.Severity, alertRule.Spec.DisplayName, d.clusterName, alertRule.Spec.MetricRule)
 					d.operatorCRDManager.AddRule(ruleGroup, promRule)
 				}
 			}
@@ -249,7 +249,7 @@ func (d *ConfigSyncer) addClusterAlert2Operator(groupRules map[string][]*v3.Clus
 		for _, alertRule := range alertRules {
 			if alertRule.Spec.MetricRule != nil {
 				ruleID := common.GetRuleID(alertRule.Spec.GroupName, alertRule.Name)
-				promRule := manager.Metric2Rule(groupID, ruleID, alertRule.Spec.Severity, alertRule.Spec.DisplayName, d.clusterName, "", alertRule.Spec.MetricRule)
+				promRule := manager.Metric2Rule(groupID, ruleID, alertRule.Spec.Severity, alertRule.Spec.DisplayName, d.clusterName, alertRule.Spec.MetricRule)
 				d.operatorCRDManager.AddRule(ruleGroup, promRule)
 			}
 		}

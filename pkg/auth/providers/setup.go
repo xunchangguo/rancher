@@ -21,6 +21,7 @@ var authConfigTypes = []string{
 	client.PingConfigType,
 	client.ADFSConfigType,
 	client.KeyCloakConfigType,
+	client.ZoomlionConfigType,
 }
 
 func SetupAuthConfig(ctx context.Context, management *config.ScaledContext, schemas *types.Schemas) {

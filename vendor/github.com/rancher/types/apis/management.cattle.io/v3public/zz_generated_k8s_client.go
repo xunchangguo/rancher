@@ -24,8 +24,6 @@ type Interface interface {
 }
 
 type Clients struct {
-	Interface Interface
-
 	AuthProvider AuthProviderClient
 }
 
@@ -68,7 +66,6 @@ func NewClients(config rest.Config) (*Clients, error) {
 
 func NewClientsFromInterface(iface Interface) *Clients {
 	return &Clients{
-		Interface: iface,
 
 		AuthProvider: &authProviderClient2{
 			iface: iface.AuthProviders(""),

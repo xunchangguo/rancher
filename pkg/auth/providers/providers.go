@@ -9,6 +9,7 @@ import (
 	"github.com/rancher/rancher/pkg/auth/providers/azure"
 	"github.com/rancher/rancher/pkg/auth/providers/common"
 	"github.com/rancher/rancher/pkg/auth/providers/github"
+	"github.com/rancher/rancher/pkg/auth/providers/zoomlion"
 	"github.com/rancher/rancher/pkg/auth/providers/ldap"
 	"github.com/rancher/rancher/pkg/auth/providers/local"
 	"github.com/rancher/rancher/pkg/auth/providers/saml"
@@ -20,13 +21,10 @@ import (
 )
 
 var (
-	ProviderNames          = make(map[string]bool)
-	ProvidersWithSecrets   = make(map[string]bool)
-	UnrefreshableProviders = make(map[string]bool)
-	providers              = make(map[string]common.AuthProvider)
-	localProvider          = "local"
-	providersByType        = make(map[string]common.AuthProvider)
-	confMu                 sync.Mutex
+	providers       = make(map[string]common.AuthProvider)
+	localProvider   = "local"
+	providersByType = make(map[string]common.AuthProvider)
+	confMu          sync.Mutex
 )
 
 func GetProvider(providerName string) (common.AuthProvider, error) {
@@ -50,60 +48,52 @@ func Configure(ctx context.Context, mgmt *config.ScaledContext) {
 	var p common.AuthProvider
 
 	p = local.Configure(ctx, mgmt, tokenMGR)
-	ProviderNames[local.Name] = true
 	providers[local.Name] = p
 	providersByType[client.LocalConfigType] = p
 	providersByType[publicclient.LocalProviderType] = p
 
 	p = github.Configure(ctx, mgmt, userMGR, tokenMGR)
-	ProviderNames[github.Name] = true
-	ProvidersWithSecrets[github.Name] = true
 	providers[github.Name] = p
 	providersByType[client.GithubConfigType] = p
 	providersByType[publicclient.GithubProviderType] = p
 
+	//zoomlion
+	p = zoomlion.Configure(ctx, mgmt, userMGR, tokenMGR)
+	providers[zoomlion.Name] = p
+	providersByType[client.ZoomlionConfigType] = p
+	providersByType[publicclient.ZoomlionProviderType] = p
+
 	p = azure.Configure(ctx, mgmt, userMGR, tokenMGR)
-	ProviderNames[azure.Name] = true
-	ProvidersWithSecrets[azure.Name] = true
 	providers[azure.Name] = p
 	providersByType[client.AzureADConfigType] = p
 	providersByType[publicclient.AzureADProviderType] = p
 
 	p = activedirectory.Configure(ctx, mgmt, userMGR, tokenMGR)
-	ProviderNames[activedirectory.Name] = true
 	providers[activedirectory.Name] = p
 	providersByType[client.ActiveDirectoryConfigType] = p
 	providersByType[publicclient.ActiveDirectoryProviderType] = p
 
-	p = ldap.Configure(ctx, mgmt, userMGR, tokenMGR, ldap.OpenLdapName)
-	ProviderNames[ldap.OpenLdapName] = true
+	p = ldap.Configure(ctx, mgmt, userMGR, tokenMGR, ldap.OpenLdapName, client.OpenLdapTestAndApplyInputType, "openldap_user", "openldap_group")
 	providers[ldap.OpenLdapName] = p
 	providersByType[client.OpenLdapConfigType] = p
 	providersByType[publicclient.OpenLdapProviderType] = p
 
-	p = ldap.Configure(ctx, mgmt, userMGR, tokenMGR, ldap.FreeIpaName)
-	ProviderNames[ldap.FreeIpaName] = true
+	p = ldap.Configure(ctx, mgmt, userMGR, tokenMGR, ldap.FreeIpaName, client.FreeIpaTestAndApplyInputType, "freeipa_user", "freeipa_group")
 	providers[ldap.FreeIpaName] = p
 	providersByType[client.FreeIpaConfigType] = p
 	providersByType[publicclient.FreeIpaProviderType] = p
 
 	p = saml.Configure(ctx, mgmt, userMGR, tokenMGR, saml.PingName)
-	ProviderNames[saml.PingName] = true
-	UnrefreshableProviders[saml.PingName] = true
 	providers[saml.PingName] = p
 	providersByType[client.PingConfigType] = p
 	providersByType[publicclient.PingProviderType] = p
 
 	p = saml.Configure(ctx, mgmt, userMGR, tokenMGR, saml.ADFSName)
-	ProviderNames[saml.ADFSName] = true
-	UnrefreshableProviders[saml.ADFSName] = true
 	providers[saml.ADFSName] = p
 	providersByType[client.ADFSConfigType] = p
 	providersByType[publicclient.ADFSProviderType] = p
 
 	p = saml.Configure(ctx, mgmt, userMGR, tokenMGR, saml.KeyCloakName)
-	ProviderNames[saml.KeyCloakName] = true
-	UnrefreshableProviders[saml.KeyCloakName] = true
 	providers[saml.KeyCloakName] = p
 	providersByType[client.KeyCloakConfigType] = p
 	providersByType[publicclient.KeyCloakProviderType] = p
@@ -142,12 +132,4 @@ func SearchPrincipals(name, principalType string, myToken v3.Token) ([]v3.Princi
 		}
 	}
 	return principals, err
-}
-
-func CanAccessWithGroupProviders(providerName string, userPrincipalID string, groups []v3.Principal) (bool, error) {
-	return providers[providerName].CanAccessWithGroupProviders(userPrincipalID, groups)
-}
-
-func RefetchGroupPrincipals(principalID string, providerName string, secret string) ([]v3.Principal, error) {
-	return providers[providerName].RefetchGroupPrincipals(principalID, secret)
 }

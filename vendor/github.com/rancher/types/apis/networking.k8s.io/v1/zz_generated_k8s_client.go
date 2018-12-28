@@ -24,8 +24,6 @@ type Interface interface {
 }
 
 type Clients struct {
-	Interface Interface
-
 	NetworkPolicy NetworkPolicyClient
 }
 
@@ -68,7 +66,6 @@ func NewClients(config rest.Config) (*Clients, error) {
 
 func NewClientsFromInterface(iface Interface) *Clients {
 	return &Clients{
-		Interface: iface,
 
 		NetworkPolicy: &networkPolicyClient2{
 			iface: iface.NetworkPolicies(""),

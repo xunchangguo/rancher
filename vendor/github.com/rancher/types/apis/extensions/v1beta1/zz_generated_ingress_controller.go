@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -30,13 +29,6 @@ var (
 		Kind: IngressGroupVersionKind.Kind,
 	}
 )
-
-func NewIngress(namespace, name string, obj v1beta1.Ingress) *v1beta1.Ingress {
-	obj.APIVersion, obj.Kind = IngressGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type IngressList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -233,8 +225,8 @@ func (s *ingressClient) Watch(opts metav1.ListOptions) (watch.Interface, error) 
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *ingressClient) Patch(o *v1beta1.Ingress, patchType types.PatchType, data []byte, subresources ...string) (*v1beta1.Ingress, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *ingressClient) Patch(o *v1beta1.Ingress, data []byte, subresources ...string) (*v1beta1.Ingress, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*v1beta1.Ingress), err
 }
 
@@ -286,7 +278,6 @@ type IngressClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() IngressInterface
 }
 
@@ -305,10 +296,6 @@ func (n *ingressClient2) Interface() IngressInterface {
 
 func (n *ingressClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *ingressClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *ingressClient2) Enqueue(namespace, name string) {

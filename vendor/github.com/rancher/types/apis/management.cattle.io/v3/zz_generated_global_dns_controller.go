@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -29,13 +28,6 @@ var (
 		Kind: GlobalDNSGroupVersionKind.Kind,
 	}
 )
-
-func NewGlobalDNS(namespace, name string, obj GlobalDNS) *GlobalDNS {
-	obj.APIVersion, obj.Kind = GlobalDNSGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type GlobalDNSList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -232,8 +224,8 @@ func (s *globalDnsClient) Watch(opts metav1.ListOptions) (watch.Interface, error
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *globalDnsClient) Patch(o *GlobalDNS, patchType types.PatchType, data []byte, subresources ...string) (*GlobalDNS, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *globalDnsClient) Patch(o *GlobalDNS, data []byte, subresources ...string) (*GlobalDNS, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*GlobalDNS), err
 }
 
@@ -285,7 +277,6 @@ type GlobalDNSClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() GlobalDNSInterface
 }
 
@@ -304,10 +295,6 @@ func (n *globalDnsClient2) Interface() GlobalDNSInterface {
 
 func (n *globalDnsClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *globalDnsClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *globalDnsClient2) Enqueue(namespace, name string) {

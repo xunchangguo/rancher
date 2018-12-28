@@ -244,13 +244,11 @@ func (p *Provisioner) reconcileCluster(cluster *v3.Cluster, create bool) (*v3.Cl
 			logrus.Infof("Create done, Updating cluster [%s]", cluster.Name)
 			apiEndpoint, serviceAccountToken, caCert, err = p.driverUpdate(cluster, *spec)
 		}
-	} else if spec.RancherKubernetesEngineConfig.RotateCertificates != nil {
-		logrus.Infof("Rotating certificates for cluster [%s]", cluster.Name)
-		apiEndpoint, serviceAccountToken, caCert, err = p.driverUpdate(cluster, *spec)
 	} else {
 		logrus.Infof("Updating cluster [%s]", cluster.Name)
 		apiEndpoint, serviceAccountToken, caCert, err = p.driverUpdate(cluster, *spec)
 	}
+
 	// at this point we know the cluster has been modified in driverCreate/Update so reload
 	if newCluster, reloadErr := p.Clusters.Get(cluster.Name, metav1.GetOptions{}); reloadErr == nil {
 		cluster = newCluster
@@ -283,8 +281,6 @@ func (p *Provisioner) reconcileCluster(cluster *v3.Cluster, create bool) (*v3.Cl
 		cluster.Status.APIEndpoint = apiEndpoint
 		cluster.Status.ServiceAccountToken = serviceAccountToken
 		cluster.Status.CACert = caCert
-		cluster.Spec.RancherKubernetesEngineConfig.RotateCertificates = nil
-		cluster.Status.AppliedSpec.RancherKubernetesEngineConfig.RotateCertificates = nil
 
 		if cluster, err = p.Clusters.Update(cluster); err == nil {
 			saved = true
@@ -364,15 +360,7 @@ func skipProvisioning(cluster *v3.Cluster) bool {
 func (p *Provisioner) getConfig(reconcileRKE bool, spec v3.ClusterSpec, driverName, clusterName string) (*v3.ClusterSpec, interface{}, error) {
 	var v interface{}
 	if spec.GenericEngineConfig == nil {
-		if spec.RancherKubernetesEngineConfig != nil {
-			var err error
-			v, err = convert.EncodeToMap(spec.RancherKubernetesEngineConfig)
-			if err != nil {
-				return nil, nil, err
-			}
-		} else {
-			v = map[string]interface{}{}
-		}
+		v = map[string]interface{}{}
 	} else {
 		v = *spec.GenericEngineConfig
 	}

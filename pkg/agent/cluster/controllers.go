@@ -9,13 +9,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-var running bool
-
 func RunControllers() error {
-	if running {
-		return nil
-	}
-
 	logrus.Info("Starting user controllers")
 	c, err := rest.InClusterConfig()
 	if err != nil {
@@ -37,6 +31,5 @@ func RunControllers() error {
 		return err
 	}
 
-	running = true
 	return nil
 }

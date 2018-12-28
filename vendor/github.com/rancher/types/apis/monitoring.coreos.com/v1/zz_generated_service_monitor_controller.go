@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -30,13 +29,6 @@ var (
 		Kind: ServiceMonitorGroupVersionKind.Kind,
 	}
 )
-
-func NewServiceMonitor(namespace, name string, obj v1.ServiceMonitor) *v1.ServiceMonitor {
-	obj.APIVersion, obj.Kind = ServiceMonitorGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type ServiceMonitorList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -233,8 +225,8 @@ func (s *serviceMonitorClient) Watch(opts metav1.ListOptions) (watch.Interface, 
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *serviceMonitorClient) Patch(o *v1.ServiceMonitor, patchType types.PatchType, data []byte, subresources ...string) (*v1.ServiceMonitor, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *serviceMonitorClient) Patch(o *v1.ServiceMonitor, data []byte, subresources ...string) (*v1.ServiceMonitor, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*v1.ServiceMonitor), err
 }
 
@@ -286,7 +278,6 @@ type ServiceMonitorClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() ServiceMonitorInterface
 }
 
@@ -305,10 +296,6 @@ func (n *serviceMonitorClient2) Interface() ServiceMonitorInterface {
 
 func (n *serviceMonitorClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *serviceMonitorClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *serviceMonitorClient2) Enqueue(namespace, name string) {

@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -29,13 +28,6 @@ var (
 		Kind: PodSecurityPolicyTemplateProjectBindingGroupVersionKind.Kind,
 	}
 )
-
-func NewPodSecurityPolicyTemplateProjectBinding(namespace, name string, obj PodSecurityPolicyTemplateProjectBinding) *PodSecurityPolicyTemplateProjectBinding {
-	obj.APIVersion, obj.Kind = PodSecurityPolicyTemplateProjectBindingGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type PodSecurityPolicyTemplateProjectBindingList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -232,8 +224,8 @@ func (s *podSecurityPolicyTemplateProjectBindingClient) Watch(opts metav1.ListOp
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *podSecurityPolicyTemplateProjectBindingClient) Patch(o *PodSecurityPolicyTemplateProjectBinding, patchType types.PatchType, data []byte, subresources ...string) (*PodSecurityPolicyTemplateProjectBinding, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *podSecurityPolicyTemplateProjectBindingClient) Patch(o *PodSecurityPolicyTemplateProjectBinding, data []byte, subresources ...string) (*PodSecurityPolicyTemplateProjectBinding, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*PodSecurityPolicyTemplateProjectBinding), err
 }
 
@@ -285,7 +277,6 @@ type PodSecurityPolicyTemplateProjectBindingClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() PodSecurityPolicyTemplateProjectBindingInterface
 }
 
@@ -304,10 +295,6 @@ func (n *podSecurityPolicyTemplateProjectBindingClient2) Interface() PodSecurity
 
 func (n *podSecurityPolicyTemplateProjectBindingClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *podSecurityPolicyTemplateProjectBindingClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *podSecurityPolicyTemplateProjectBindingClient2) Enqueue(namespace, name string) {

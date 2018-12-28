@@ -12,6 +12,7 @@ import (
 
 var TypeToField = map[string]string{
 	client.GithubConfigType:          "clientSecret",
+	client.ZoomlionConfigType:        "clientSecret",
 	client.ActiveDirectoryConfigType: "serviceAccountPassword",
 	client.AzureADConfigType:         "applicationSecret",
 	client.OpenLdapConfigType:        "serviceAccountPassword",

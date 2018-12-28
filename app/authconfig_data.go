@@ -7,6 +7,7 @@ import (
 	"github.com/rancher/rancher/pkg/auth/providers/ldap"
 	localprovider "github.com/rancher/rancher/pkg/auth/providers/local"
 	"github.com/rancher/rancher/pkg/auth/providers/saml"
+	"github.com/rancher/rancher/pkg/auth/providers/zoomlion"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/client/management/v3"
 	"github.com/rancher/types/config"
@@ -17,6 +18,10 @@ import (
 
 func addAuthConfigs(management *config.ManagementContext) error {
 	if err := addAuthConfig(github.Name, client.GithubConfigType, false, management); err != nil {
+		return err
+	}
+
+	if err := addAuthConfig(zoomlion.Name, client.ZoomlionConfigType, false, management); err != nil {
 		return err
 	}
 

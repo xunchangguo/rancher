@@ -359,7 +359,7 @@ func initClusterPreCanAlerts(clusterAlertGroups v3.ClusterAlertGroupInterface, c
 		logrus.Warnf("Failed to create precan rules for event: %v", err)
 	}
 
-	name = "deployment-event-alert"
+	name = "deploment-event-alert"
 	rule = &v3.ClusterAlertRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,

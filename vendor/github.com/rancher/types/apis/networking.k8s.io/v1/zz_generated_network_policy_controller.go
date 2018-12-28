@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -30,13 +29,6 @@ var (
 		Kind: NetworkPolicyGroupVersionKind.Kind,
 	}
 )
-
-func NewNetworkPolicy(namespace, name string, obj v1.NetworkPolicy) *v1.NetworkPolicy {
-	obj.APIVersion, obj.Kind = NetworkPolicyGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type NetworkPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -233,8 +225,8 @@ func (s *networkPolicyClient) Watch(opts metav1.ListOptions) (watch.Interface, e
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *networkPolicyClient) Patch(o *v1.NetworkPolicy, patchType types.PatchType, data []byte, subresources ...string) (*v1.NetworkPolicy, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *networkPolicyClient) Patch(o *v1.NetworkPolicy, data []byte, subresources ...string) (*v1.NetworkPolicy, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*v1.NetworkPolicy), err
 }
 
@@ -286,7 +278,6 @@ type NetworkPolicyClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() NetworkPolicyInterface
 }
 
@@ -305,10 +296,6 @@ func (n *networkPolicyClient2) Interface() NetworkPolicyInterface {
 
 func (n *networkPolicyClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *networkPolicyClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *networkPolicyClient2) Enqueue(namespace, name string) {

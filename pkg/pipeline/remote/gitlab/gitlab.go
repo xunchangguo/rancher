@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -106,10 +107,11 @@ func (c *client) Repos(account *v3.SourceCodeCredential) ([]v3.SourceCodeReposit
 }
 
 func (c *client) CreateHook(pipeline *v3.Pipeline, accessToken string) (string, error) {
-	project, err := getProjectNameFromURL(pipeline.Spec.RepositoryURL)
+	user, repo, err := getUserRepoFromURL(pipeline.Spec.RepositoryURL)
 	if err != nil {
 		return "", err
 	}
+	project := url.QueryEscape(user + "/" + repo)
 	hookURL := fmt.Sprintf("%s/hooks?pipelineId=%s", settings.ServerURL.Get(), ref.Ref(pipeline))
 	opt := &gitlab.AddProjectHookOptions{
 		PushEvents:            gitlab.Bool(true),
@@ -141,10 +143,12 @@ func (c *client) CreateHook(pipeline *v3.Pipeline, accessToken string) (string, 
 }
 
 func (c *client) DeleteHook(pipeline *v3.Pipeline, accessToken string) error {
-	project, err := getProjectNameFromURL(pipeline.Spec.RepositoryURL)
+	user, repo, err := getUserRepoFromURL(pipeline.Spec.RepositoryURL)
 	if err != nil {
 		return err
 	}
+	project := url.QueryEscape(user + "/" + repo)
+
 	hook, err := c.getHook(pipeline, accessToken)
 	if err != nil {
 		return err
@@ -161,10 +165,12 @@ func (c *client) DeleteHook(pipeline *v3.Pipeline, accessToken string) error {
 }
 
 func (c *client) getHook(pipeline *v3.Pipeline, accessToken string) (*gitlab.ProjectHook, error) {
-	project, err := getProjectNameFromURL(pipeline.Spec.RepositoryURL)
+	user, repo, err := getUserRepoFromURL(pipeline.Spec.RepositoryURL)
 	if err != nil {
 		return nil, err
 	}
+	project := url.QueryEscape(user + "/" + repo)
+
 	var hooks []gitlab.ProjectHook
 	var result *gitlab.ProjectHook
 	url := fmt.Sprintf(c.API+"/projects/%s/hooks", project)
@@ -189,7 +195,8 @@ func (c *client) getHook(pipeline *v3.Pipeline, accessToken string) (*gitlab.Pro
 	return result, nil
 }
 
-func (c *client) getFileFromRepo(filename string, project string, ref string, accessToken string) (*gitlab.File, error) {
+func (c *client) getFileFromRepo(filename string, owner string, repo string, ref string, accessToken string) (*gitlab.File, error) {
+	project := url.QueryEscape(owner + "/" + repo)
 	url := fmt.Sprintf("%s/projects/%s/repository/files/%s?ref=%s", c.API, project, filename, ref)
 	resp, err := getFromGitlab(accessToken, url)
 	if err != nil {
@@ -210,7 +217,7 @@ func (c *client) getFileFromRepo(filename string, project string, ref string, ac
 }
 
 func (c *client) GetPipelineFileInRepo(repoURL string, ref string, accessToken string) ([]byte, error) {
-	project, err := getProjectNameFromURL(repoURL)
+	owner, repo, err := getUserRepoFromURL(repoURL)
 	if err != nil {
 		return nil, err
 	}
@@ -221,10 +228,10 @@ func (c *client) GetPipelineFileInRepo(repoURL string, ref string, accessToken s
 		}
 		ref = defaultBranch
 	}
-	file, err := c.getFileFromRepo(utils.PipelineFileYml, project, ref, accessToken)
+	file, err := c.getFileFromRepo(utils.PipelineFileYml, owner, repo, ref, accessToken)
 	if err != nil {
 		//look for both suffix
-		file, err = c.getFileFromRepo(utils.PipelineFileYaml, project, ref, accessToken)
+		file, err = c.getFileFromRepo(utils.PipelineFileYaml, owner, repo, ref, accessToken)
 	}
 	if err != nil {
 		logrus.Debugf("error GetPipelineFileInRepo - %v", err)
@@ -242,18 +249,19 @@ func (c *client) GetPipelineFileInRepo(repoURL string, ref string, accessToken s
 }
 
 func (c *client) SetPipelineFileInRepo(repoURL string, branch string, accessToken string, content []byte) error {
-	project, err := getProjectNameFromURL(repoURL)
+	owner, repo, err := getUserRepoFromURL(repoURL)
 	if err != nil {
 		return err
 	}
-	currentFile, err := c.getFileFromRepo(utils.PipelineFileYml, project, branch, accessToken)
+
+	currentFile, err := c.getFileFromRepo(utils.PipelineFileYml, owner, repo, branch, accessToken)
 	currentFileName := utils.PipelineFileYml
 	if err != nil {
 		if httpErr, ok := err.(*httperror.APIError); !ok || httpErr.Code.Status != http.StatusNotFound {
 			return err
 		}
 		//look for both suffix
-		currentFile, err = c.getFileFromRepo(utils.PipelineFileYaml, project, branch, accessToken)
+		currentFile, err = c.getFileFromRepo(utils.PipelineFileYaml, owner, repo, branch, accessToken)
 		if err != nil {
 			if httpErr, ok := err.(*httperror.APIError); !ok || httpErr.Code.Status != http.StatusNotFound {
 				return err
@@ -263,6 +271,7 @@ func (c *client) SetPipelineFileInRepo(repoURL string, branch string, accessToke
 		}
 	}
 
+	project := url.QueryEscape(owner + "/" + repo)
 	url := fmt.Sprintf("%s/projects/%s/repository/files/%s?branch=%s", c.API, project, currentFileName, branch)
 	message := "Create .rancher-pipeline.yml file"
 	contentStr := string(content)
@@ -287,10 +296,12 @@ func (c *client) SetPipelineFileInRepo(repoURL string, branch string, accessToke
 }
 
 func (c *client) GetBranches(repoURL string, accessToken string) ([]string, error) {
-	project, err := getProjectNameFromURL(repoURL)
+	owner, repo, err := getUserRepoFromURL(repoURL)
 	if err != nil {
 		return nil, err
 	}
+
+	project := url.QueryEscape(owner + "/" + repo)
 	url := fmt.Sprintf(c.API+"/projects/%s/repository/branches", project)
 
 	resp, err := getFromGitlab(accessToken, url)
@@ -317,10 +328,12 @@ func (c *client) GetBranches(repoURL string, accessToken string) ([]string, erro
 }
 
 func (c *client) GetDefaultBranch(repoURL string, accessToken string) (string, error) {
-	project, err := getProjectNameFromURL(repoURL)
+	owner, repo, err := getUserRepoFromURL(repoURL)
 	if err != nil {
 		return "", err
 	}
+
+	project := url.QueryEscape(owner + "/" + repo)
 	url := fmt.Sprintf(c.API+"/projects/%s", project)
 
 	resp, err := getFromGitlab(accessToken, url)
@@ -345,14 +358,12 @@ func (c *client) GetDefaultBranch(repoURL string, accessToken string) (string, e
 }
 
 func (c *client) GetHeadInfo(repoURL string, branch string, accessToken string) (*model.BuildInfo, error) {
-	project, err := getProjectNameFromURL(repoURL)
+
+	owner, repo, err := getUserRepoFromURL(repoURL)
 	if err != nil {
 		return nil, err
 	}
-	projectUnescape, err := url.QueryUnescape(project)
-	if err != nil {
-		return nil, err
-	}
+	project := url.QueryEscape(owner + "/" + repo)
 	url := fmt.Sprintf(c.API+"/projects/%s/repository/commits?with_stats=true&ref_name=%s", project, branch)
 
 	resp, err := getFromGitlab(accessToken, url)
@@ -381,7 +392,7 @@ func (c *client) GetHeadInfo(repoURL string, branch string, accessToken string) 
 	info.Message = headCommit.Message
 	info.Email = headCommit.AuthorEmail
 	info.Author = headCommit.AuthorName
-	info.HTMLLink = fmt.Sprintf("%s%s/%s/commit/%s", c.Scheme, c.Host, projectUnescape, headCommit.ID)
+	info.HTMLLink = fmt.Sprintf("%s%s/%s/%s/commit/%s", c.Scheme, c.Host, owner, repo, headCommit.ID)
 	userInfo, err := c.getGitlabUser(accessToken)
 	if err != nil {
 		return nil, err
@@ -588,12 +599,11 @@ func getAccessLevel(repo gitlab.Project) int {
 	return accessLevel
 }
 
-func getProjectNameFromURL(repoURL string) (string, error) {
-	u, err := url.Parse(repoURL)
-	if err != nil {
-		return "", err
+func getUserRepoFromURL(repoURL string) (string, string, error) {
+	reg := regexp.MustCompile(".*/([^/]*?)/([^/]*?).git")
+	match := reg.FindStringSubmatch(repoURL)
+	if len(match) != 3 {
+		return "", "", fmt.Errorf("error getting user/repo from gitrepoUrl:%v", repoURL)
 	}
-	project := strings.TrimPrefix(u.Path, "/")
-	project = strings.TrimSuffix(project, ".git")
-	return url.QueryEscape(project), nil
+	return match[1], match[2], nil
 }

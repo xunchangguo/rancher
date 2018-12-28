@@ -29,6 +29,7 @@ var authProviderTypes = []string{
 	v3public.ActiveDirectoryProviderType,
 	v3public.AzureADProviderType,
 	v3public.GithubProviderType,
+	v3public.ZoomlionProviderType,
 	v3public.LocalProviderType,
 	v3public.OpenLdapProviderType,
 	v3public.FreeIpaProviderType,

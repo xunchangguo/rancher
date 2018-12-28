@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -29,13 +28,6 @@ var (
 		Kind: ClusterLoggingGroupVersionKind.Kind,
 	}
 )
-
-func NewClusterLogging(namespace, name string, obj ClusterLogging) *ClusterLogging {
-	obj.APIVersion, obj.Kind = ClusterLoggingGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type ClusterLoggingList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -232,8 +224,8 @@ func (s *clusterLoggingClient) Watch(opts metav1.ListOptions) (watch.Interface, 
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *clusterLoggingClient) Patch(o *ClusterLogging, patchType types.PatchType, data []byte, subresources ...string) (*ClusterLogging, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *clusterLoggingClient) Patch(o *ClusterLogging, data []byte, subresources ...string) (*ClusterLogging, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*ClusterLogging), err
 }
 
@@ -285,7 +277,6 @@ type ClusterLoggingClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() ClusterLoggingInterface
 }
 
@@ -304,10 +295,6 @@ func (n *clusterLoggingClient2) Interface() ClusterLoggingInterface {
 
 func (n *clusterLoggingClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *clusterLoggingClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *clusterLoggingClient2) Enqueue(namespace, name string) {

@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -28,13 +27,6 @@ var (
 		Kind:         RoleTemplateGroupVersionKind.Kind,
 	}
 )
-
-func NewRoleTemplate(namespace, name string, obj RoleTemplate) *RoleTemplate {
-	obj.APIVersion, obj.Kind = RoleTemplateGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type RoleTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -231,8 +223,8 @@ func (s *roleTemplateClient) Watch(opts metav1.ListOptions) (watch.Interface, er
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *roleTemplateClient) Patch(o *RoleTemplate, patchType types.PatchType, data []byte, subresources ...string) (*RoleTemplate, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *roleTemplateClient) Patch(o *RoleTemplate, data []byte, subresources ...string) (*RoleTemplate, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*RoleTemplate), err
 }
 
@@ -284,7 +276,6 @@ type RoleTemplateClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() RoleTemplateInterface
 }
 
@@ -303,10 +294,6 @@ func (n *roleTemplateClient2) Interface() RoleTemplateInterface {
 
 func (n *roleTemplateClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *roleTemplateClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *roleTemplateClient2) Enqueue(namespace, name string) {

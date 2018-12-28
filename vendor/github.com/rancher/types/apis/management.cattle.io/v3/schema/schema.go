@@ -145,7 +145,6 @@ func clusterTypes(schemas *types.Schemas) *types.Schemas {
 		MustImport(&Version, v3.ClusterRegistrationToken{}).
 		MustImport(&Version, v3.GenerateKubeConfigOutput{}).
 		MustImport(&Version, v3.ImportClusterYamlInput{}).
-		MustImport(&Version, v3.RotateCertificateInput{}).
 		MustImport(&Version, v3.ImportYamlOutput{}).
 		MustImport(&Version, v3.ExportOutput{}).
 		MustImport(&Version, v3.MonitoringInput{}).
@@ -178,9 +177,6 @@ func clusterTypes(schemas *types.Schemas) *types.Schemas {
 				Input: "monitoringInput",
 			}
 			schema.ResourceActions["disableMonitoring"] = types.Action{}
-			schema.ResourceActions["rotateCertificates"] = types.Action{
-				Input: "rotateCertificateInput",
-			}
 		})
 }
 
@@ -365,6 +361,24 @@ func authnTypes(schemas *types.Schemas) *types.Schemas {
 		}).
 		MustImport(&Version, v3.GithubConfigTestOutput{}).
 		MustImport(&Version, v3.GithubConfigApplyInput{}).
+		//Zoomlion Config
+		MustImportAndCustomize(&Version, v3.ZoomlionConfig{}, func(schema *types.Schema) {
+			schema.BaseType = "authConfig"
+			schema.ResourceActions = map[string]types.Action{
+				"disable": {},
+				"configureTest": {
+					Input:  "zoomlionConfig",
+					Output: "zoomlionConfigTestOutput",
+				},
+				"testAndApply": {
+					Input: "zoomlionConfigApplyInput",
+				},
+			}
+			schema.CollectionMethods = []string{}
+			schema.ResourceMethods = []string{http.MethodGet, http.MethodPut}
+		}).
+		MustImport(&Version, v3.ZoomlionConfigTestOutput{}).
+		MustImport(&Version, v3.ZoomlionConfigApplyInput{}).
 		//AzureAD Config
 		MustImportAndCustomize(&Version, v3.AzureADConfig{}, func(schema *types.Schema) {
 			schema.BaseType = "authConfig"

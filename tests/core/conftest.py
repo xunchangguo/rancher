@@ -233,12 +233,11 @@ def wait_for_condition(condition_type, status, client, obj, timeout=45):
     return obj
 
 
-def wait_until(cb, timeout=DEFAULT_TIMEOUT, backoff=True):
+def wait_until(cb, timeout=DEFAULT_TIMEOUT):
     start_time = time.time()
     interval = 1
     while time.time() < start_time + timeout and cb() is False:
-        if backoff:
-            interval *= 2
+        interval *= 2
         time.sleep(interval)
 
 

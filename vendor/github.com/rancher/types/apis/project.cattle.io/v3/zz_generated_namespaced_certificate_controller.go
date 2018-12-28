@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -29,13 +28,6 @@ var (
 		Kind: NamespacedCertificateGroupVersionKind.Kind,
 	}
 )
-
-func NewNamespacedCertificate(namespace, name string, obj NamespacedCertificate) *NamespacedCertificate {
-	obj.APIVersion, obj.Kind = NamespacedCertificateGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type NamespacedCertificateList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -232,8 +224,8 @@ func (s *namespacedCertificateClient) Watch(opts metav1.ListOptions) (watch.Inte
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *namespacedCertificateClient) Patch(o *NamespacedCertificate, patchType types.PatchType, data []byte, subresources ...string) (*NamespacedCertificate, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *namespacedCertificateClient) Patch(o *NamespacedCertificate, data []byte, subresources ...string) (*NamespacedCertificate, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*NamespacedCertificate), err
 }
 
@@ -285,7 +277,6 @@ type NamespacedCertificateClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() NamespacedCertificateInterface
 }
 
@@ -304,10 +295,6 @@ func (n *namespacedCertificateClient2) Interface() NamespacedCertificateInterfac
 
 func (n *namespacedCertificateClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *namespacedCertificateClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *namespacedCertificateClient2) Enqueue(namespace, name string) {

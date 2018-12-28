@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/rancher/norman/pkg/dump"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/ehazlett/simplelog"
-	"github.com/rancher/norman/pkg/dump"
 	"github.com/rancher/norman/pkg/kwrapper/k8s"
 	"github.com/rancher/norman/signal"
 	"github.com/rancher/rancher/app"
@@ -186,6 +186,7 @@ func migrateETCDlocal() {
 func run(cfg app.Config) error {
 	logrus.Infof("Rancher version %s is starting", VERSION)
 	logrus.Infof("Rancher arguments %+v", cfg)
+	//TODO
 	dump.GoroutineDumpOn(syscall.SIGUSR1, syscall.SIGILL)
 	ctx := signal.SigTermCancelContext(context.Background())
 

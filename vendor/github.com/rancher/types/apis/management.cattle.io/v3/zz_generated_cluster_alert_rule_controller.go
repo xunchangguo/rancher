@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -29,13 +28,6 @@ var (
 		Kind: ClusterAlertRuleGroupVersionKind.Kind,
 	}
 )
-
-func NewClusterAlertRule(namespace, name string, obj ClusterAlertRule) *ClusterAlertRule {
-	obj.APIVersion, obj.Kind = ClusterAlertRuleGroupVersionKind.ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}
 
 type ClusterAlertRuleList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -232,8 +224,8 @@ func (s *clusterAlertRuleClient) Watch(opts metav1.ListOptions) (watch.Interface
 }
 
 // Patch applies the patch and returns the patched deployment.
-func (s *clusterAlertRuleClient) Patch(o *ClusterAlertRule, patchType types.PatchType, data []byte, subresources ...string) (*ClusterAlertRule, error) {
-	obj, err := s.objectClient.Patch(o.Name, o, patchType, data, subresources...)
+func (s *clusterAlertRuleClient) Patch(o *ClusterAlertRule, data []byte, subresources ...string) (*ClusterAlertRule, error) {
+	obj, err := s.objectClient.Patch(o.Name, o, data, subresources...)
 	return obj.(*ClusterAlertRule), err
 }
 
@@ -285,7 +277,6 @@ type ClusterAlertRuleClient interface {
 	Enqueue(namespace, name string)
 
 	Generic() controller.GenericController
-	ObjectClient() *objectclient.ObjectClient
 	Interface() ClusterAlertRuleInterface
 }
 
@@ -304,10 +295,6 @@ func (n *clusterAlertRuleClient2) Interface() ClusterAlertRuleInterface {
 
 func (n *clusterAlertRuleClient2) Generic() controller.GenericController {
 	return n.iface.Controller().Generic()
-}
-
-func (n *clusterAlertRuleClient2) ObjectClient() *objectclient.ObjectClient {
-	return n.Interface().ObjectClient()
 }
 
 func (n *clusterAlertRuleClient2) Enqueue(namespace, name string) {
