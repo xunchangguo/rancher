@@ -2,8 +2,10 @@ package zoomlion
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -32,7 +34,8 @@ func (g *ZClient) getAccessToken(code string, config *v3.ZoomlionConfig) (string
 	form.Add("client_id", config.ClientID)
 	form.Add("client_secret", config.ClientSecret)
 	form.Add("code", code)
-	form.Add("redirect_uri", "https://10.39.172.65:8443/verify-auth")
+	//TODO
+	//form.Add("redirect_uri", "https://10.39.172.65:8443/verify-auth")
 	form.Add("grant_type", "authorization_code")
 
 	url := g.getURL("TOKEN", config)
@@ -42,47 +45,30 @@ func (g *ZClient) getAccessToken(code string, config *v3.ZoomlionConfig) (string
 		logrus.Errorf("Zoomlion getAccessToken: GET url %v received error from zoomlion, err: %v", url, err)
 		return "", err
 	}
-
-	// Decode the response
-	var respMap map[string]interface{}
-
-	if err := json.Unmarshal(b, &respMap); err != nil {
-		logrus.Errorf("Zoomlion getAccessToken: received error unmarshalling response body, err: %v", err)
-		return "", err
-	}
-
-	if respMap["error"] != nil {
-		desc := respMap["error_description"]
-		logrus.Errorf("Received Error from zoomlion %v, description from zoomlion %v", respMap["error"], desc)
-		return "", fmt.Errorf("Received Error from zoomlion %v, description from zoomlion %v", respMap["error"], desc)
-	}
-
-	acessToken, ok := respMap["access_token"].(string)
-	if !ok {
-		return "", fmt.Errorf("Received Error reading accessToken from response %v", respMap)
-	}
+	acessToken := string(b)
 	return acessToken, nil
 }
 
 func (g *ZClient) getUser(zlAccessToken string, config *v3.ZoomlionConfig) (Account, error) {
-
-	url := g.getURL("USER_INFO", config)
-	b, _, err := g.getFromZoomlion(zlAccessToken, url)
+	token, err := jwt.Parse(zlAccessToken, func(token *jwt.Token) (i interface{}, e error) {
+		key, _ := base64.URLEncoding.DecodeString(config.ClientSecret)
+		return key, nil
+	})
 	if err != nil {
-		logrus.Errorf("Zoomlion getZoomlionUser: GET url %v received error from zoomlion, err: %v", url, err)
+		logrus.Errorf("Zoomlion getZoomlionUser: validate token error, err: %v", err)
 		return Account{}, err
 	}
-	var zlAccout Account
-
-	if err := json.Unmarshal(b, &zlAccout); err != nil {
+	if clains, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		zlAccout := Account{
+			Login: clains["sub"].(string),
+			ID:    clains["user_id"].(string),
+			Name:  clains["username"].(string),
+		}
+		return zlAccout, nil
+	} else {
 		logrus.Errorf("Zoomlion getZoomlionUser: error unmarshalling response, err: %v", err)
 		return Account{}, err
 	}
-
-	//TODO test
-	zlAccout.ID = "100"
-
-	return zlAccout, nil
 }
 
 func (g *ZClient) getOrgs(zlAccessToken string, config *v3.ZoomlionConfig) ([]Account, error) {
@@ -350,7 +336,7 @@ func (g *ZClient) getURL(endpoint string, config *v3.ZoomlionConfig) string {
 	case "API":
 		toReturn = apiEndpoint
 	case "TOKEN":
-		toReturn = hostName + "/oauth2/token"
+		toReturn = hostName + "/oauth/token"
 	case "USERS":
 		toReturn = apiEndpoint + "/users/"
 	case "ORGS":

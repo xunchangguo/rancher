@@ -73,13 +73,13 @@ func zoomlionRedirectURL(hostname, clientID string, tls bool) string {
 	if hostname != "" {
 		scheme := "http://"
 		if tls {
-			scheme = "https://"
+			scheme = "http://"
 		}
 		redirect = scheme + hostname
 	} else {
 		redirect = zoomlionDefaultHostName
 	}
-	redirect = redirect + "/oauth2/auth?client_id=" + clientID
+	redirect = redirect + "/oauth/login?client_id=" + clientID
 	return redirect
 }
 

@@ -30,6 +30,8 @@ echo ${IMAGE} > ../dist/images
 echo ${AGENT_IMAGE} >> ../dist/images
 echo Built ${IMAGE} #${AGENT_IMAGE}
 echo
+docker save IMAGE | gzip -c > ../bin/rancher_${TAG}.tar
+docker save AGENT_IMAGE | gzip -c > ../bin/release/rancher-agent_${TAG}.tar
 
 cd ../bin
 go run ../pkg/image/export/main.go $IMAGE $AGENT_IMAGE

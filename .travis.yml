@@ -1,0 +1,30 @@
+language: go
+sudo: false
+notifications:
+  email: false
+jobs:
+  include:
+    - go: 1.11.2
+      stage: deploy
+      go_import_path: github.com/rancher/rancher
+      services:
+        - docker
+      install: skip
+      script: skip
+      before_deploy:
+        - chmod +x scripts/*
+        - ./scripts/build
+        - ./scripts/package
+      deploy:
+        - provider: releases
+          api_key:
+            secure: "FyGA9cMjWP25EfSAzxdHOTEq5To2TZI/tKHbduxDpYXJK4cE5tLtYPw36AU6iGMctDkA3gEBNuuCtJ+OJJqmQvwQjhIe2yp/UUOtBd3lqKP7i5W36mtA/YJ2Uk8s1eLJN6xBGeVQDoM2s+Pu7kqSW7UCfK13gasK7+rPetkuTlM8Ujw+7dEqO3rIrdGUFP9s2oQ+N4BNZpVbQv+irYfblFceJvE3X4ZwrR3pJNgdny/2YyJa6nqE7CX0uqe3xGlxReaXKbTeUiFgDcQjAHwNB4kk+BNfHFKzLA9+PV39QGetDBcoOpp8gmWLn5bcEInTg+sMnVs1oFzZ7Amy+Sl6DlV0fPEsHNSLRJuYdTRYk+r158KGR7Nzhf/SGFLPF/dDWkSLEBUjoy+t2M6Xdf0Jwcr/13sUJEj/mL3zCX67JcGR4jO171Rd4un4dtrth+AuZ18zhxhgVzxoZi3cHwACNRTkVyBC+qd9Ud4Cl5AthkNfvTp6wT+yVRT4DHc7xKqrJNdPksywmn11zlPs2of8E+/HmzmrOsB+VFs4EAfX2WmVCPvIT92eyGv/U3ROx24HbdkWu4FKwfF01QVQCjgdzcBF5agbYw64ESccM5EV1CejsF8euAafJR841cDsoNSAlqO5FsfSkheY08pBaYFP6yNTvCZkzeQBI0XZrvq6gdc="
+          file_glob: true
+          file: bin/*
+          skip_cleanup: true
+          on:
+            repo: xunchangguo/rancher
+            branch: master
+            tags: true
+addons:
+  ssh_known_hosts: github.com
